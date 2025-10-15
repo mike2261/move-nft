@@ -1,62 +1,68 @@
-/*
-/// Module: move_102
-module move_102::move_102;
-*/
+module move_102::my_nft {
 
-// For Move coding conventions, see
-// https://docs.sui.io/concepts/sui-move-concepts/conventions
+    use std::string::{Self, String};
+    use std::vector;
+    use sui::object;
+    use sui::tx_context::{Self, TxContext};
+    use sui::transfer;
 
+    /// NFT struct
+    public struct NFT has key, store {
+        id: object::UID,
+        name: String,
+        description: String,
+        image_url: String,
+    }
 
-module move_102::my_nft;
+    /// Template struct used to define NFT samples
+    public struct NFTTemplate has store {
+        name: String,
+        description: String,
+        image_url: String,
+    }
 
-use std::string;
-use sui::package;
-use sui::display;
+    /// Registry struct to store templates
+    public struct Registry has key, store {
+        id: object::UID,
+        templates: vector<NFTTemplate>,
+    }
 
-public struct MyNFT has key, store {
-    id: UID,
-    name: string::String,
-    description: string::String,
-    image_url: string::String,
-}
+    /// Initialize: create an empty registry and give it to sender
+    fun init(ctx: &mut TxContext) {
+        let registry = Registry {
+            id: object::new(ctx),
+            templates: vector::empty<NFTTemplate>(),
+        };
+        transfer::public_transfer(registry, tx_context::sender(ctx));
+    }
 
-public struct Registry has key, store {
-    id: object::UID,
-    nfts: vector<object::ID>,
-}
+    /// Add a new NFT template to registry
+    public fun add_template(
+        registry: &mut Registry,
+        name: String,
+        description: String,
+        image_url: String,
+        _ctx: &mut TxContext,
+    ) {
+        let template = NFTTemplate { name, description, image_url };
+        vector::push_back(&mut registry.templates, template);
+    }
 
-fun init(ctx: &mut TxContext) {
-    let registry = Registry {
-        id: object::new(ctx),
-        nfts: vector::empty<object::ID>(),
-    };
-    transfer::transfer(registry, tx_context::sender(ctx));
-}
-    
-public fun mint(
-    registry: &mut Registry,
-    name: string::String,
-    url: string::String,
-    ctx: &mut TxContext
-) {
-    let nft = MyNFT {
-        id: object::new(ctx),
-        name,
-        description,
-        image_url,
-    };
-    let nft_id = object::id(&nft);
-    vector::push_back(&mut registry.nfts, nft_id);
-    transfer::transfer(nft, tx_context::sender(ctx));
-}
+    /// Mint NFT from an existing template
+    public fun mint_from_template(
+        registry: &Registry,
+        index: u64,
+        ctx: &mut TxContext,
+    ) {
+        let tpl = vector::borrow(&registry.templates, index);
+        let nft = NFT {
+            id: object::new(ctx),
+            name: tpl.name,
+            description: tpl.description,
+            image_url: tpl.image_url,
+        };
+        transfer::public_transfer(nft, tx_context::sender(ctx));
+    }
 
-public fun create_display(ctx: &mut TxContext) {
-    display::new_display<MyNFT>(
-        ctx,
-        vector[
-            (string::utf8(b"name"), string::utf8(b"{name}")),
-            (string::utf8(b"description"), string::utf8(b"{description}")),
-            (string::utf8(b"image_url"), string::utf8(b"{image_url}")),
-        ]
-    );
+    //TODO: add functions to display NFT info
 }
